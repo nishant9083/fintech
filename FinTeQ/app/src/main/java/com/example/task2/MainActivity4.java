@@ -93,6 +93,7 @@ public class MainActivity4 extends AppCompatActivity {
                     .setTitle("TrusToken Disconnected")
                     .setMessage("Please connect the USB to proceed.")
                     .setCancelable(false) // Prevent dialog dismissal
+                    .setPositiveButton("OK", (dialog, which) -> {finishAffinity(); finish();})
                     .create();
             alertDialog.show();
         }

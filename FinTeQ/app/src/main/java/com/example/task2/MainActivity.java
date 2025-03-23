@@ -1,17 +1,22 @@
 package com.example.task2;
 
+import android.app.Dialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AlertDialog;
+import androidx.fragment.app.DialogFragment;
+import androidx.fragment.app.FragmentManager;
 
 import com.razorpay.Checkout;
 import com.razorpay.PaymentResultListener;
@@ -24,9 +29,11 @@ public class MainActivity extends AppCompatActivity implements PaymentResultList
     private static final int SMART_CARD_VENDOR_ID = 10381;  // Replace with actual USB Token Vendor ID
     private static final int SMART_CARD_PRODUCT_ID = 64;    // Replace with actual Product ID
 
-    private AlertDialog alertDialog;
-    private UsbManager usbManager;
     private boolean isRazorpayActive = false;
+    private UsbManager usbManager;
+    private Handler usbCheckHandler;
+//    private ProgressBar progressBar;
+    private FragmentManager fragmentManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,6 +41,9 @@ public class MainActivity extends AppCompatActivity implements PaymentResultList
         setContentView(R.layout.activity_main);
 
         usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        usbCheckHandler = new Handler();
+//        progressBar = findViewById(R.id.progressBar);
+        fragmentManager = getSupportFragmentManager();
 
         Button upiButton = findViewById(R.id.button);
         upiButton.setOnClickListener(view -> {
@@ -60,6 +70,8 @@ public class MainActivity extends AppCompatActivity implements PaymentResultList
     // 🔹 1️⃣ Start Razorpay Payment
     private void startPayment() {
         isRazorpayActive = true;
+//        progressBar.setVisibility(View.VISIBLE);  // Show loader
+
         Checkout checkout = new Checkout();
         checkout.setKeyID("rzp_test_aZuZDuCDDrZVvo"); // Replace with your Razorpay Key
 
@@ -79,36 +91,37 @@ public class MainActivity extends AppCompatActivity implements PaymentResultList
         }
     }
 
-    // 🔹 2️⃣ Monitor USB Connection Continuously (Before & After Razorpay)
-    private void startUSBMonitoring() {
-        new Thread(() -> {
-            while (true) {
-                if (!isSmartCardConnected()) {
-                    runOnUiThread(this::showUSBDisconnectedDialog);
+    // 🔹 2️⃣ USB Monitoring using Handler
+    private final Runnable usbCheckRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isSmartCardConnected()) {
+                runOnUiThread(() -> {
                     if (isRazorpayActive) {
-                        runOnUiThread(this::finishRazorpaySession);
+                        finishRazorpaySession();
                     }
-                }
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+                    showUSBDisconnectedDialog();
+                });
             }
-        }).start();
+            usbCheckHandler.postDelayed(this, 500); // Check every 500ms
+        }
+    };
+
+    private void startUSBMonitoring() {
+        usbCheckHandler.post(usbCheckRunnable);
     }
 
-    // 🔹 3️⃣ Show USB Disconnection Alert
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        usbCheckHandler.removeCallbacks(usbCheckRunnable);
+    }
+
+    // 🔹 3️⃣ Show USB Disconnection Alert **Above** Razorpay
     private void showUSBDisconnectedDialog() {
-        if (alertDialog == null || !alertDialog.isShowing()) {
-            alertDialog = new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("TrusToken Disconnected")
-                    .setMessage("Please connect the USB token to proceed.")
-                    .setCancelable(false)
-                    .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
-                    .create();
-            alertDialog.show();
+        if (fragmentManager.findFragmentByTag("USB_DIALOG") == null) {
+            USBDisconnectedDialog dialog = new USBDisconnectedDialog();
+            dialog.show(fragmentManager, "USB_DIALOG");
         }
     }
 
@@ -123,22 +136,25 @@ public class MainActivity extends AppCompatActivity implements PaymentResultList
         return false;
     }
 
-    // 🔹 5️⃣ Destroy Razorpay Payment Session if USB is Removed
+    // 🔹 5️⃣ Close Razorpay Payment Screen on USB Removal
     private void finishRazorpaySession() {
         isRazorpayActive = false;
-        onPaymentError(0, "USB Token Disconnected! Payment Session Terminated.");
+//        progressBar.setVisibility(View.GONE);  // Hide loader
+        runOnUiThread(() -> onPaymentError(0, "USB Token Disconnected! Payment Terminated."));
     }
 
     // 🔹 6️⃣ Razorpay Payment Callbacks
     @Override
     public void onPaymentSuccess(String razorpayPaymentID) {
         isRazorpayActive = false;
+//        progressBar.setVisibility(View.GONE);  // Hide loader
         Toast.makeText(this, "Payment Successful! ID: " + razorpayPaymentID, Toast.LENGTH_LONG).show();
     }
 
     @Override
     public void onPaymentError(int code, String response) {
         isRazorpayActive = false;
+//        progressBar.setVisibility(View.GONE);  // Hide loader
         Toast.makeText(this, "Payment Failed: " + response, Toast.LENGTH_LONG).show();
     }
 }

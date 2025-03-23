@@ -4,21 +4,16 @@ plugins {
 
 android {
     namespace = "com.example.task2"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.task2"
-        minSdk = 29
-        targetSdk = 34
+        minSdk = 26
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        externalNativeBuild {
-            cmake {
-                cppFlags += ""
-            }
-        }
     }
 
     buildTypes {
@@ -36,8 +31,8 @@ android {
     }
     sourceSets {
         getByName("main") {
-            jni {
-                srcDirs("src\\main\\jni", "src\\main\\jni")
+            jniLibs {
+                srcDirs("src\\main\\jniLibs", "src\\main\\jniLibs")
             }
         }
     }
@@ -47,6 +42,8 @@ android {
             version = "3.22.1"
         }
     }
+    ndkVersion = "26.3.11579264"
+    buildToolsVersion = "35.0.0"
 }
 
 dependencies {
@@ -55,7 +52,8 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
-    implementation ("com.razorpay:checkout:1.6.26")
+    implementation (libs.checkout)
+    implementation(libs.java.websocket)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

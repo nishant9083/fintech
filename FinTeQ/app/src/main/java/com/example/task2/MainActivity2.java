@@ -100,6 +100,7 @@ public class MainActivity2 extends AppCompatActivity {
                     .setTitle("TrustToken Disconnected")
                     .setMessage("Please connect the USB to proceed.")
                     .setCancelable(false)
+                    .setPositiveButton("OK", (dialog, which) -> {finishAffinity(); finish();})
                     .create();
             alertDialog.show();
         }
